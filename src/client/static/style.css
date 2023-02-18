@@ -1,0 +1,100 @@
+h1, h2, h3 {
+    font-weight: 200;
+    margin: 0px;
+}
+
+a[href] {
+    color: black;
+}
+
+td {
+    text-align: center;
+}
+
+svg {
+    user-select: none;
+}
+
+input:not([type="file"]) {
+    padding: 3px;
+}
+
+ul {
+    margin: 0px;
+}
+
+hr {
+    width: 100%;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.artistResults {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.artistResult {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.artistResult img {
+    width: 100px;
+}
+
+.cover {
+    width: 150px;
+}
+
+.tracks {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+}
+
+.tracks > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.link, .home {
+    cursor: pointer;
+}
+
+.home {
+    color: #aaa;
+}
+
+.higherLowerButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.numberInput {
+    width: 30px;
+}
+
+.durationInput {
+    width: 70px;
+}
+
+.artistList {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}

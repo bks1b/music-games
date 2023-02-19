@@ -78,7 +78,7 @@ const client = new MongoClient(process.env.MONGO_URI!);
 const db = client.connect().then(() => client.db('music_games'));
 
 express()
-    .use(express.json({ limit: '1mb' }))
+    .use(express.json({ limit: '5mb' }))
     .get('/api/getDiscography/:id', async (req, res) => {
         let name;
         const albums = [];

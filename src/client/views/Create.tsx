@@ -3,7 +3,7 @@ import { Arrow, Cross } from 'attrib-wordle/src';
 import { ArtistData, Track } from '../../util';
 import DataInput from '../components/DataInput';
 import HomeLink from '../components/HomeLink';
-import { renderDuration } from '../util';
+import { getCommonEnd, renderDuration } from '../util';
 
 const ICON_SIZE = 20;
 
@@ -22,56 +22,67 @@ const getEmptyData = () => ({
 });
 
 export default () => {
-    const renderTracks = (tracks: Track[], album?: boolean) => <div><table>
-        <thead><tr>
-            {album ? <th/> : ''}
-            <th>Title</th>
-            <th>Duration</th>
-            {data!.attribs.features ? <th>Features</th> : ''}
-            {data!.attribs.vocalists ? <th>Vocalists</th> : ''}
-            <th>Spotify ID</th>
-            <th>Popularity</th>
-        </tr></thead>
-        <tbody>{tracks.map((x, i, a) => <tr key={x.id + ';' + fixedIndices[x.id]}>
-            {album ? <td><input defaultValue={x.tracklistIndex!} type='number' className='numberInput' onInput={e => {
-                x.tracklistIndex = +(e.target as HTMLInputElement).value;
+    const renderTracks = (i = -1) => {
+        const album = i > -1;
+        const tracks = album ? data!.albums[i].tracks : data!.singles;
+        return <div key={Date.now()}>
+            <div>Remove text from end: <input defaultValue={getCommonEnd(tracks.map(x => x.name))} ref={e => removalInputs[i] = e!}/> <button onClick={() => {
+                const s = removalInputs[i].value;
+                tracks.forEach(x => x.name = x.name.endsWith(s) ? x.name.slice(0, -s.length) : x.name);
                 setData({ ...data! });
-            }}/></td> : ''}
-            <td><input defaultValue={x.name} onInput={e => {
-                x.name = (e.target as HTMLInputElement).value;
-                setData({ ...data! });
-            }}/></td>
-            <td><input defaultValue={renderDuration(x.duration)} className='durationInput' onInput={e => {
-                const [m, s] = (e.target as HTMLInputElement).value.split(':').map(x => +x);
-                if (!isNaN(m) && !isNaN(s)) {
-                    x.duration = (m * 60 + s) * 1000;
-                    setData({ ...data! });
-                }
-            }}/></td>
-            {(['features', 'vocalists'] as const).map(k => data!.attribs[k]
-                ? <td key={k}><input defaultValue={x[k].join('; ')} onInput={e => {
-                    x[k] = (e.target as HTMLInputElement).value.split(';').map(x => x.trim());
-                    setData({ ...data! });
-                }}/></td>
-                : null
-            )}
-            <td><input defaultValue={x.spotifyId || ''} onInput={e => {
-                x.spotifyId = (e.target as HTMLInputElement).value;
-                setData({ ...data! });
-            }}/></td>
-            <td>{x.popularity || 'N/A'}</td>
-            <td className='row'>
-                {getButtons(a, i)}
-                {
-                    toMove
-                        ? toMove[0].id === x.id
-                            ? <button onClick={() => setToMove(undefined)}>Cancel moving</button>
-                            : ''
-                        : <button onClick={() => setToMove([x, () => a.splice(i, 1)])}>Move</button> 
-                }
-            </td>
-        </tr>)}</tbody>
-    </table></div>;
+            }}>Remove</button></div>
+            <table>
+                <thead><tr>
+                    {album ? <th/> : ''}
+                    <th>Title</th>
+                    <th>Duration</th>
+                    {data!.attribs.features ? <th>Features</th> : ''}
+                    {data!.attribs.vocalists ? <th>Vocalists</th> : ''}
+                    <th>Spotify ID</th>
+                    <th>Popularity</th>
+                </tr></thead>
+                <tbody>{tracks.map((x, i, a) => <tr key={x.id + ';' + fixedIndices[x.id]}>
+                    {album ? <td><input defaultValue={x.tracklistIndex!} type='number' className='numberInput' onInput={e => {
+                        x.tracklistIndex = +(e.target as HTMLInputElement).value;
+                        setData({ ...data! });
+                    }}/></td> : ''}
+                    <td><input defaultValue={x.name} onInput={e => {
+                        x.name = (e.target as HTMLInputElement).value;
+                        setData({ ...data! });
+                    }}/></td>
+                    <td><input defaultValue={renderDuration(x.duration)} className='durationInput' onInput={e => {
+                        const [m, s] = (e.target as HTMLInputElement).value.split(':').map(x => +x);
+                        if (!isNaN(m) && !isNaN(s)) {
+                            x.duration = (m * 60 + s) * 1000;
+                            setData({ ...data! });
+                        }
+                    }}/></td>
+                    {(['features', 'vocalists'] as const).map(k => data!.attribs[k]
+                        ? <td key={k}><input defaultValue={x[k].join('; ')} onInput={e => {
+                            x[k] = (e.target as HTMLInputElement).value.split(';').map(x => x.trim());
+                            setData({ ...data! });
+                        }}/></td>
+                        : null,
+                    )}
+                    <td><input defaultValue={x.spotifyId || ''} onInput={e => {
+                        x.spotifyId = (e.target as HTMLInputElement).value;
+                        setData({ ...data! });
+                    }}/></td>
+                    <td>{x.popularity || 'N/A'}</td>
+                    <td className='row'>
+                        {getButtons(a, i)}
+                        {
+                            toMove
+                                ? toMove[0].id === x.id
+                                    ? <button onClick={() => setToMove(undefined)}>Cancel moving</button>
+                                    : ''
+                                : <button onClick={() => setToMove([x, () => a.splice(i, 1)])}>Move</button> 
+                        }
+                    </td>
+                </tr>)}</tbody>
+            </table>
+        </div>;
+    };
     const getButtons = <T,>(arr: T[], i: number) => <>
         <Cross size={ICON_SIZE} fn={() => {
             arr.splice(i, 1);
@@ -102,6 +113,7 @@ export default () => {
     const idInput = useRef<HTMLInputElement>(null);
     const searchInput = useRef<HTMLInputElement>(null);
     const albumIdInput = useRef<HTMLInputElement>(null);
+    const removalInputs: Record<number, HTMLInputElement> = {};
     useEffect(() => {
         document.title = 'Create an Artist | Music Games';
     }, []);
@@ -167,7 +179,7 @@ export default () => {
                         : ''
                 }
             </div>
-            {renderTracks(data.singles)}
+            {renderTracks()}
             {data.albums.map((x, i) => <Fragment key={x.id}>
                 <hr/>
                 <div className='row'>
@@ -209,7 +221,7 @@ export default () => {
                     setData({ ...data });
                 }}/></label>
                 <img src={x.cover} className='cover'/>
-                {renderTracks(x.tracks, true)}
+                {renderTracks(i)}
             </Fragment>)}
         </div>
         : <div className='column'>

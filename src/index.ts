@@ -16,19 +16,19 @@ config();
 let token: { token: string; expires: number; };
 let ratelimitExpires = 0;
 
-const cleanName = (str: string) => str.replace(/(?!^)(-|\(|\[]).*?(version|remaster|bonus|deluxe|edition|reissue).*/ig, '').trim();
-const getTrack = (x: TracklistResponse['items'][number], artist: string) => ({
-    name: cleanName(x.name),
+const getBaseData = (x: TracklistResponse['items'][number] | AlbumResponse['items'][number]) => ({
+    name: x.name,
     spotifyId: x.id,
     id: x.external_urls.spotify,
+});
+const getTrack = (x: TracklistResponse['items'][number], artist: string) => ({
+    ...getBaseData(x),
     duration: x.duration_ms,
     features: x.artists.filter(x => x.id !== artist).map(x => x.name),
     vocalists: [],
 });
 const getAlbum = (x: AlbumResponse['items'][number]) => ({
-    name: cleanName(x.name),
-    spotifyId: x.id,
-    id: x.external_urls.spotify,
+    ...getBaseData(x),
     cover: x.images[0].url,
     year: +x.release_date.split('-')[0],
 });
@@ -110,7 +110,7 @@ express()
     .get('/api/getAlbum/:id', (req, res) => get<AlbumResponse['items'][number] & ErrorResponse>('/albums/' + req.params.id).then(async d => res.json(
         d.error?.status === 400
             ? { error: 'Album not found.' }
-            : { ...getAlbum(d), tracks: await getTracklist(req.params.id, d.artists[0].id) }
+            : { ...getAlbum(d), tracks: await getTracklist(req.params.id, d.artists[0].id) },
     )))
     .get('/api/searchArtists', (req, res) => get<{ artists: { items: BaseData[]; }; }>(`/search?type=artist&q=${encodeURIComponent(<string>req.query.q)}&limit=${LIMIT}`).then(d => res.json(d.artists.items.map(x => ({
         id: x.id,

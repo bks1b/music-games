@@ -199,12 +199,12 @@ export default () => {
                     setData({ ...data });
                 }}/></li>
             </ul>
-            <h2>Singles</h2>
+            <h2>Non-album tracks</h2>
             <div className='row'>
                 <button onClick={() => {
                     data.singles.push(getEmptyTrack());
                     setData({ ...data });
-                }}>Add single</button>
+                }}>Add non-album track</button>
                 <button onClick={() => {
                     data.singles.sort((a, b) => a.name.localeCompare(b.name));
                     setData({ ...data });
@@ -252,7 +252,7 @@ export default () => {
             </Fragment>)}
         </div>
         : <div className='column'>
-            <DataInput callback={x => setData(x)} create/>
+            <DataInput callback={x => setData(x[0])} create/>
             <div><button onClick={() => setData(getEmptyData())}>Enter data manually</button></div>
             <a>Load from Spotify (might take a while):</a>
             <div className='row'>

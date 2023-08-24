@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { compareTwoStrings } from 'string-similarity';
-import { ArtistData, validateData } from '../../util';
+import { ArtistData, ResolvedArtistData, resolveArtistData, validateData } from '../../util';
 import HomeLink from './HomeLink';
 
-export default ({ callback, create }: { callback: (x: ArtistData) => any; create?: boolean; }) => {
+export default ({ callback, create }: { callback: (x: ResolvedArtistData) => any; create?: boolean; }) => {
     const [data, setData] = useState<ArtistData[]>();
     const [query, setQuery] = useState('');
     useEffect(() => {
@@ -21,7 +21,7 @@ export default ({ callback, create }: { callback: (x: ArtistData) => any; create
                     try {
                         const d: ArtistData = JSON.parse(str);
                         if (!validateData(d)) throw '';
-                        callback(d);
+                        callback(resolveArtistData(d, true));
                     } catch {
                         alert('Invalid input');
                     }
@@ -31,7 +31,7 @@ export default ({ callback, create }: { callback: (x: ArtistData) => any; create
             <label>Search: <input onInput={e => setQuery((e.target as HTMLInputElement).value)}/></label>
             {
                 results!.length
-                    ? <ul>{results!.sort((a, b) => b[1] - a[1]).map((x, i) => <li key={i} className='link' onClick={() => callback(x[0])}>{x[0].name}</li>)}</ul>
+                    ? <ul>{results!.sort((a, b) => b[1] - a[1]).map((x, i) => <li key={i}>{x[0].name} <button onClick={() => callback(resolveArtistData(x[0], true))}>Load</button> {create ? '' : <button onClick={() => callback(resolveArtistData(x[0], false))}>Load without non-album tracks</button>}</li>)}</ul>
                     : ''
             }
         </div>

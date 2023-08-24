@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Cross } from 'attrib-wordle/src';
-import { Album, ArtistData, Track } from '../../util';
+import { IndividualTrack, ResolvedArtistData } from '../../util';
 import DataInput from '../components/DataInput';
 import HomeLink from '../components/HomeLink';
 
@@ -31,14 +31,14 @@ export default () => {
     const renderTrack = (x: IndividualTrack) => <>
         {
             x.album
-                ? <img className='albumCover' src={x.album!.cover}/>
+                ? <img className='albumCover' src={x.album[0].cover}/>
                 : <div className='albumCover' style={{ aspectRatio: 1 }}>&nbsp;</div>
         }
         <h1>{x.name}</h1>
         <h2>{x.artist}</h2>
-        {x.album ? <h3>{x.album!.name}</h3> : ''}
+        {x.album ? <h3>{x.album[0].name}</h3> : ''}
     </>;
-    const [artists, setArtists] = useState<ArtistData[]>([]);
+    const [artists, setArtists] = useState<ResolvedArtistData[]>([]);
     const [data, setData] = useState<IndividualTrack[]>();
     const [used, setUsed] = useState<number[]>([]);
     const [tracks, setTracks] = useState<number[]>();
@@ -76,20 +76,19 @@ export default () => {
             </div>
         </>
         : <div className='column'>
-            <DataInput callback={x => !artists.some(y => y.name === x.name) && setArtists([...artists, x])}/>
+            <DataInput callback={x => !artists.some(y => y[0].name === x[0].name) && setArtists([...artists, x])}/>
             {
                 artists.length
                     ? <>
                         <a>Included artists:</a>
-                        <ul>{artists.map(x => <li key={x.name}><div className='artistList'>
-                            <a>{x.name}</a>
-                            <Cross size={15} fn={() => setArtists(artists.filter(y => y.name !== x.name))}/>
+                        <ul>{artists.map(x => <li key={x[0].name}><div className='artistList'>
+                            <a>{x[0].name}</a>
+                            <Cross size={15} fn={() => setArtists(artists.filter(y => y[0].name !== x[0].name))}/>
                         </div></li>)}</ul>
                     </>
                     : ''
             }
-            <div><button onClick={() => setData(artists.flatMap(a => [...a.albums.flatMap(x => x.tracks.map(y => ({ ...y, album: x }))), ...a.singles].filter(x => x.popularity).map(x => ({ ...x, artist: a.name }))))}>Play</button></div>
+            <div><button onClick={() => setData(artists.flatMap(a => a[1].filter(x => x.popularity).map(x => ({ ...x, artist: a[0].name }))))}>Play</button></div>
         </div>;
 };
 
-type IndividualTrack = Track & { artist: string; album?: Album; };

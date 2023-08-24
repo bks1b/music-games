@@ -3,7 +3,7 @@ import { Arrow, Cross } from 'attrib-wordle/src';
 import { ArtistData, Track } from '../../util';
 import DataInput from '../components/DataInput';
 import HomeLink from '../components/HomeLink';
-import { getCommonEnd, renderDuration } from '../util';
+import { renderDuration } from '../util';
 
 const ICON_SIZE = 20;
 
@@ -25,11 +25,26 @@ export default () => {
     const renderTracks = (i = -1) => {
         const album = i > -1;
         const tracks = album ? data!.albums[i].tracks : data!.singles;
-        return <div key={Date.now()}>
-            <div>Remove text from end: <input defaultValue={getCommonEnd(tracks.map(x => x.name))} ref={e => removalInputs[i] = e!}/> <button onClick={() => {
-                const s = removalInputs[i].value;
-                tracks.forEach(x => x.name = x.name.endsWith(s) ? x.name.slice(0, -s.length) : x.name);
+        inputs[i] = inputs[i] || [];
+        return <div key={i + '-' + reload}>
+            <div>Remove text from end: <input ref={e => inputs[i][0] = e!}/> <button onClick={() => {
+                const s = inputs[i][0].value;
+                if (!s) return;
+                const toRemove = tracks.filter(x => x.name.endsWith(s));
+                if (!toRemove.length) return alert('No matching songs.');
+                toRemove.forEach(x => x.name = x.name.slice(0, -s.length).trim());
                 setData({ ...data! });
+                setReload(reload + 1);
+            }}>Remove</button></div>
+            <div>Remove songs that include <input ref={e => inputs[i][1] = e!}/> <button onClick={() => {
+                const s = inputs[i][1].value;
+                if (!s) return;
+                const toRemove = tracks.map((x, i) => [x.name, i] as const).filter(x => x[0].includes(s));
+                if (!toRemove.length) return alert('No matching songs.');
+                if (!confirm(toRemove.map(x => x[0]).join('\n'))) return;
+                toRemove.reverse().forEach(x => tracks.splice(x[1], 1));
+                setData({ ...data! });
+                setReload(reload + 1);
             }}>Remove</button></div>
             <table>
                 <thead><tr>
@@ -41,7 +56,7 @@ export default () => {
                     <th>Spotify ID</th>
                     <th>Popularity</th>
                 </tr></thead>
-                <tbody>{tracks.map((x, i, a) => <tr key={x.id + ';' + fixedIndices[x.id]}>
+                <tbody>{tracks.map((x, i, a) => <tr key={x.id}>
                     {album ? <td><input defaultValue={x.tracklistIndex!} type='number' className='numberInput' onInput={e => {
                         x.tracklistIndex = +(e.target as HTMLInputElement).value;
                         setData({ ...data! });
@@ -72,11 +87,12 @@ export default () => {
                     <td className='row'>
                         {getButtons(a, i)}
                         {
-                            toMove
-                                ? toMove[0].id === x.id
-                                    ? <button onClick={() => setToMove(undefined)}>Cancel moving</button>
-                                    : ''
-                                : <button onClick={() => setToMove([x, () => a.splice(i, 1)])}>Move</button> 
+                            toMove.some(y => y[0].id === x.id)
+                                ? <button onClick={() => setToMove(toMove.filter(y => y[0].id !== x.id))}>Cancel moving</button>
+                                : <>
+                                    <button onClick={() => setToMove([...toMove, [x, a]])}>Move</button> 
+                                    <button onClick={() => setToMove([...toMove, ...tracks.slice(i).filter(x => !toMove.some(y => y[0].id === x.id)).map(x => [x, a] as [Track, Track[]])])}>Move remaining tracks</button>
+                                </>
                         }
                     </td>
                 </tr>)}</tbody>
@@ -105,15 +121,25 @@ export default () => {
                 : ''
         }
     </>;
+    const getMoveButton = (arr: Track[], idx?: true | undefined) => toMove.length
+        ? <button onClick={() => {
+            toMove.forEach(x => {
+                arr.push({ ...x[0], tracklistIndex: idx && arr.length + 1 });
+                x[1].splice(x[1].indexOf(x[0]), 1);
+            });
+            setToMove([]);
+            setData({ ...data! });
+        }}>Move here</button>
+        : '';
     const loadData = (id: string) => fetch('/api/getDiscography/' + id).then(d => d.json()).then(d => d.error ? alert(d.error) : setData(d));
     const [data, setData] = useState<ArtistData | undefined>();
     const [search, setSearch] = useState<Record<'id' | 'name' | 'url' | 'img', string>[]>([]);
-    const [fixedIndices, setFixedIndices] = useState<Record<string, number>>({});
-    const [toMove, setToMove] = useState<[Track, () => any] | undefined>();
+    const [toMove, setToMove] = useState<[Track, Track[]][]>([]);
+    const [reload, setReload] = useState(0);
     const idInput = useRef<HTMLInputElement>(null);
     const searchInput = useRef<HTMLInputElement>(null);
     const albumIdInput = useRef<HTMLInputElement>(null);
-    const removalInputs: Record<number, HTMLInputElement> = {};
+    const inputs: Record<number, HTMLInputElement[]> = {};
     useEffect(() => {
         document.title = 'Create an Artist | Music Games';
     }, []);
@@ -133,6 +159,21 @@ export default () => {
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify(data),
                 }).then(d => d.json()).then(d => setData({ ...d }))}>Get popularity</button>
+                <button onClick={() => {
+                    const arr = [...data.singles, ...data.albums.flatMap(x => x.tracks)];
+                    const songs = arr.reduce((a, b) => {
+                        const k = b.name.toLowerCase();
+                        if (typeof b.popularity === 'number' && (!a[k] || b.popularity! > a[k].popularity!)) {
+                            a[k] = { ...b };
+                            delete (a[k] as Track).tracklistIndex;
+                        }
+                        return a;
+                    }, {} as Record<string, Omit<Track, 'tracklistIndex'>>);
+                    arr.forEach(x => typeof x.popularity === 'number' && Object.assign(x, { ...songs[x.name.toLowerCase()] }));
+                    data.singles = [...new Set(data.singles.map(x => JSON.stringify(x)))].map(x => JSON.parse(x));
+                    setData({ ...data });
+                    setReload(reload + 1);
+                }}>Use most popular versions</button>
                 <button onClick={() => {
                     data.albums.push({ id: Date.now() + '', name: '', cover: '', tracks: [] });
                     setData({ ...data });
@@ -168,16 +209,7 @@ export default () => {
                     data.singles.sort((a, b) => a.name.localeCompare(b.name));
                     setData({ ...data });
                 }}>Order alphabetically</button>
-                {
-                    toMove
-                        ? <button onClick={() => {
-                            data.singles.push({ ...toMove[0], tracklistIndex: undefined });
-                            toMove[1]();
-                            setToMove(undefined);
-                            setData({ ...data });
-                        }}>Move here</button>
-                        : ''
-                }
+                {getMoveButton(data.singles)}
             </div>
             {renderTracks()}
             {data.albums.map((x, i) => <Fragment key={x.id}>
@@ -192,27 +224,22 @@ export default () => {
                         setData({ ...data });
                     }}>Add track</button>
                     <button onClick={() => {
-                        x.tracks.forEach((x, i) => {
-                            x.tracklistIndex = i + 1;
-                            fixedIndices[x.id] = (fixedIndices[x.id] || 0) + 1;
-                        });
+                        x.tracks.forEach((x, i) => x.tracklistIndex = i + 1);
                         setData({ ...data });
-                        setFixedIndices({ ...fixedIndices });
+                        setReload(reload + 1);
                     }}>Fix indices</button>
                     <button onClick={() => {
                         x.tracks.sort((a, b) => a.tracklistIndex! - b.tracklistIndex!);
                         setData({ ...data });
                     }}>Order by indices</button>
-                    {
-                        toMove
-                            ? <button onClick={() => {
-                                x.tracks.push({ ...toMove[0], tracklistIndex: x.tracks.length + 1 });
-                                toMove[1]();
-                                setToMove(undefined);
-                                setData({ ...data });
-                            }}>Move here</button>
-                            : ''
-                    }
+                    <button onClick={() => setToMove([...toMove, ...x.tracks.map(y => [y, x.tracks] as [Track, Track[]])])}>Move all</button>
+                    <button onClick={() => {
+                        const arr = x.tracks.map(t => JSON.stringify({ ...t, tracklistIndex: undefined }));
+                        data.singles = data.singles.filter(s => !arr.includes(JSON.stringify(s)));
+                        data.albums.forEach((a, j) => a.tracks = i === j ? a.tracks : a.tracks.filter(t => !arr.includes(JSON.stringify({ ...t, tracklistIndex: undefined }))));
+                        setData({ ...data });
+                    }}>Remove other occurrences</button>
+                    {getMoveButton(x.tracks, true)}
                     {getButtons(data.albums, i)}
                 </div>
                 {x.spotifyId ? <div>ID: <a href={x.id} target='_blank'>{x.spotifyId}</a></div> : ''}
